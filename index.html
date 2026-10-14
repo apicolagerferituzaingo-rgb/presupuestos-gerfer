@@ -420,42 +420,88 @@ pdfInput.addEventListener('change', async (event) => {
     }
 });
 
-function parsePresupuestoFromText(text) {
+function parsePresupuestoFromText(text) {function parsePresupuestoFromText(text) {
+    // 1) Mostrar en consola todo el texto por si hace falta
+    console.log('TEXTO COMPLETO DEL PDF:');
+    console.log(text);
+
+    // 2) Separar por líneas
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    console.log('LINEAS DETECTADAS:');
+    lines.forEach((l, i) => console.log(i + ': ' + l));
+
+    // 3) Mostrar en un alert las primeras 20 líneas para que vos veas cómo vienen
+    const primeras = lines.slice(0, 20).join('\n');
+    alert('Primeras líneas detectadas en el PDF:\n\n' + primeras);
+
+    // 4) Número de presupuesto
     let numMatch = text.match(/PRESUPUESTO\s+0*([\d]+)/i);
     const numPresupuesto = numMatch ? numMatch[1] : 'SIN_NUMERO';
 
+    // 5) Cliente
     let clienteMatch = text.match(/Cliente:\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+)/);
     const cliente = clienteMatch ? clienteMatch[1].trim() : 'SIN_CLIENTE';
 
+    // 6) Fecha de emisión
     let fechaMatch = text.match(/Fecha de Emisi[óo]n:\s*(\d{2}\/\d{2}\/\d{4})/i);
     let fechaIso = '';
     if (fechaMatch) {
         const [d, m, y] = fechaMatch[1].split('/');
         fechaIso = `${y}-${m}-${d}`;
-    } else {
-        fechaIso = '';
     }
 
-    const lines = text.split('\n');
+    // 7) Intentar detectar ítems por código al inicio de la línea
     const items = [];
     for (let raw of lines) {
-        let line = raw.trim();
-        if (!line) continue;
+        const parts = raw.split(/\s+/);
+        if (parts.length < 2) continue;
 
-        let itemMatch = line.match(/^([A-Z0-9\.]+)\s+(.+?)\s+(\d+)\s*$/);
-        if (itemMatch) {
-            const codigo = itemMatch[1];
-            const descripcion = itemMatch[2];
-            const cantidad = itemMatch[3];
+        const posibleCodigo = parts[0];
 
-            items.push({
-                codigo,
-                descripcion,
-                cantidad,
-                estado: 'ninguno'
-            });
+        // Aceptamos códigos tipo AH3, IN2, IN17.1, P4, etc.
+        if (!/^[A-Z0-9\.]+$/.test(posibleCodigo)) {
+            continue;
         }
+
+        // Buscamos la primera cantidad (número entero) en la línea
+        let cantidadIndex = -1;
+        for (let i = 1; i < parts.length; i++) {
+            if (/^\d+$/.test(parts[i])) {
+                cantidadIndex = i;
+                break;
+            }
+        }
+        if (cantidadIndex === -1) continue;
+
+        const codigo = posibleCodigo;
+        const cantidad = parts[cantidadIndex];
+
+        const descParts = parts.slice(1, cantidadIndex);
+        const descripcion = descParts.join(' ');
+
+        items.push({
+            codigo,
+            descripcion,
+            cantidad,
+            estado: 'ninguno'
+        });
     }
+
+    console.log('ITEMS DETECTADOS:', items);
+
+    const nuevoPresupuesto = {
+        id: numPresupuesto,
+        cliente: cliente,
+        fecha: fechaIso,
+        estado: 'ninguno',
+        items: items
+    };
+
+    presupuestos.push(nuevoPresupuesto);
+    renderPresupuestos();
+    alert(`Se cargó el presupuesto ${numPresupuesto} para ${cliente} con ${items.length} ítems.`);
+}
+}
 
     const nuevoPresupuesto = {
         id: numPresupuesto,
