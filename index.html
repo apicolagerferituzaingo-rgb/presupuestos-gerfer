@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Presupuestos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f4f4f4;
+        }
+        header {
+            background: #222;
+            color: #fff;
+            padding: 10px 20px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .container {
+            padding: 20px;
+        }
+        .login-box, .main-box {
+            max-width: 900px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 20px 25px;
+            border-radius: 6px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        .login-box h2, .main-box h2 {
+            margin-top: 0;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        input[type="text"],
+        input[type="password"],
+        input[type="date"] {
+            width: 100%;
+            padding: 7px 10px;
+            margin-top: 3px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 7px 14px;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        th {
+            background: #eee;
+        }
+        tr:hover {
+            background: #f9f9f9;
+        }
+        a.link-like {
+            color: #0066cc;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        a.link-like:hover {
+            text-decoration: underline;
+        }
+        select {
+            padding: 3px 5px;
+        }
+        .status-rojo {
+            background: #ffcccc;
+        }
+        .status-amarillo {
+            background: #fff1b8;
+        }
+        .status-verde {
+            background: #ccffcc;
+        }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+        .btn-secondary {
+            background: #eee;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: #fff;
+            border: none;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: #fff;
+            border: none;
+        }
+        .small-text {
+            font-size: 12px;
+            color: #666;
+        }
+        .detail-header {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f1f1f1;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .file-input {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Gestión de Presupuestos</h1>
+</header>
+
+<div class="container">
+
+    <!-- LOGIN -->
+    <div id="loginBox" class="login-box">
+        <h2>Ingreso</h2>
+        <label for="user">Usuario</label>
+        <input type="text" id="user" placeholder="Usuario">
+
+        <label for="pass">Contraseña</label>
+        <input type="password" id="pass" placeholder="Contraseña">
+
+        <button id="loginBtn" class="btn-primary">Ingresar</button>
+        <p class="small-text">Usuario demo: <b>admin</b> | Contraseña demo: <b>1234</b></p>
+    </div>
+
+    <!-- APLICACIÓN PRINCIPAL -->
+    <div id="mainBox" class="main-box hidden">
+
+        <!-- Vista general -->
+        <div id="generalView">
+            <div class="top-bar">
+                <h2>Listado de Presupuestos</h2>
+                <div>
+                    <button id="logoutBtn" class="btn-secondary">Cerrar sesión</button>
+                </div>
+            </div>
+
+            <div style="margin-top:15px;">
+                <h3>Cargar presupuesto desde PDF</h3>
+                <input type="file" id="pdfInput" accept="application/pdf" class="file-input">
+                <p class="small-text">
+                    Esta función intentará leer el PDF y extraer:
+                    número de presupuesto, cliente, fecha, código, descripción y cantidad.
+                    Es posible que necesite ajustes según el formato real de tus PDFs.
+                </p>
+            </div>
+
+            <table id="presupTable">
+                <thead>
+                    <tr>
+                        <th>N° Presupuesto</th>
+                        <th>Cliente</th>
+                        <th>Fecha ingreso</th>
+                        <th>Estado (bandera)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Filas generadas por JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Vista detalle -->
+        <div id="detailView" class="hidden">
+            <div class="top-bar">
+                <h2>Detalle de Presupuesto</h2>
+                <button id="backBtn" class="btn-secondary">Volver al listado</button>
+            </div>
+
+            <div id="detailHeader" class="detail-header">
+                <!-- Datos del encabezado -->
+            </div>
+
+            <table id="itemsTable">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Cantidad</th>
+                        <th>Estado (bandera ítem)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Filas generadas por JS -->
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<!-- Librería para leer PDF en el navegador (PDF.js) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+
+<script>
+let presupuestos = [];
+
+/* LOGIN */
+const loginBox = document.getElementById('loginBox');
+const mainBox = document.getElementById('mainBox');
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+
+loginBtn.addEventListener('click', () => {
+    const user = document.getElementById('user').value.trim();
+    const pass = document.getElementById('pass').value.trim();
+    if (user === 'admin' && pass === '1234') {
+        loginBox.classList.add('hidden');
+        mainBox.classList.remove('hidden');
+        renderPresupuestos();
+    } else {
+        alert('Usuario o contraseña incorrectos (demo: admin / 1234)');
+    }
+});
+
+logoutBtn.addEventListener('click', () => {
+    mainBox.classList.add('hidden');
+    loginBox.classList.remove('hidden');
+});
+
+/* TABLA GENERAL */
+const presupTableBody = document.querySelector('#presupTable tbody');
+
+function renderPresupuestos() {
+    presupTableBody.innerHTML = '';
+    presupuestos.forEach((p, index) => {
+        const tr = document.createElement('tr');
+
+        const tdNum = document.createElement('td');
+        const linkNum = document.createElement('a');
+        linkNum.textContent = p.id;
+        linkNum.classList.add('link-like');
+        linkNum.addEventListener('click', () => {
+            openDetail(index);
+        });
+        tdNum.appendChild(linkNum);
+        tr.appendChild(tdNum);
+
+        const tdCliente = document.createElement('td');
+        const linkCli = document.createElement('a');
+        linkCli.textContent = p.cliente;
+        linkCli.classList.add('link-like');
+        linkCli.addEventListener('click', () => {
+            openDetail(index);
+        });
+        tdCliente.appendChild(linkCli);
+        tr.appendChild(tdCliente);
+
+        const tdFecha = document.createElement('td');
+        tdFecha.textContent = formatDateForView(p.fecha);
+        tr.appendChild(tdFecha);
+
+        const tdEstado = document.createElement('td');
+        const select = document.createElement('select');
+        const opciones = [
+            { value: 'ninguno', label: 'Sin estado' },
+            { value: 'rojo', label: 'Rojo - demorado' },
+            { value: 'amarillo', label: 'Amarillo - fabricación' },
+            { value: 'verde', label: 'Verde - terminado' }
+        ];
+        opciones.forEach(op => {
+            const opt = document.createElement('option');
+            opt.value = op.value;
+            opt.textContent = op.label;
+            if (p.estado === op.value) opt.selected = true;
+            select.appendChild(opt);
+        });
+        select.addEventListener('change', () => {
+            p.estado = select.value;
+            applyRowStatusClass(tr, p.estado);
+        });
+        tdEstado.appendChild(select);
+        tr.appendChild(tdEstado);
+
+        applyRowStatusClass(tr, p.estado);
+
+        presupTableBody.appendChild(tr);
+    });
+}
+
+function applyRowStatusClass(tr, estado) {
+    tr.classList.remove('status-rojo', 'status-amarillo', 'status-verde');
+    if (estado === 'rojo') tr.classList.add('status-rojo');
+    if (estado === 'amarillo') tr.classList.add('status-amarillo');
+    if (estado === 'verde') tr.classList.add('status-verde');
+}
+
+function formatDateForView(isoDate) {
+    if (!isoDate) return '';
+    const [y, m, d] = isoDate.split('-');
+    return `${d}/${m}/${y}`;
+}
+
+/* DETALLE */
+const generalView = document.getElementById('generalView');
+const detailView = document.getElementById('detailView');
+const backBtn = document.getElementById('backBtn');
+const detailHeader = document.getElementById('detailHeader');
+const itemsTableBody = document.querySelector('#itemsTable tbody');
+
+let currentPresupIndex = null;
+
+function openDetail(index) {
+    currentPresupIndex = index;
+    const p = presupuestos[index];
+
+    generalView.classList.add('hidden');
+    detailView.classList.remove('hidden');
+
+    detailHeader.innerHTML = `
+        <b>N° Presupuesto:</b> ${p.id} &nbsp;&nbsp; 
+        <b>Cliente:</b> ${p.cliente} &nbsp;&nbsp; 
+        <b>Fecha ingreso:</b> ${formatDateForView(p.fecha)}
+    `;
+
+    renderItems(p);
+}
+
+function renderItems(p) {
+    itemsTableBody.innerHTML = '';
+    p.items.forEach((item, i) => {
+        const tr = document.createElement('tr');
+
+        const tdCod = document.createElement('td');
+        tdCod.textContent = item.codigo;
+        tr.appendChild(tdCod);
+
+        const tdDesc = document.createElement('td');
+        tdDesc.textContent = item.descripcion;
+        tr.appendChild(tdDesc);
+
+        const tdCant = document.createElement('td');
+        tdCant.textContent = item.cantidad;
+        tr.appendChild(tdCant);
+
+        const tdEstado = document.createElement('td');
+        const select = document.createElement('select');
+        const opciones = [
+            { value: 'ninguno', label: 'Sin estado' },
+            { value: 'rojo', label: 'Rojo - demorado' },
+            { value: 'amarillo', label: 'Amarillo - fabricación' },
+            { value: 'verde', label: 'Verde - terminado' }
+        ];
+        opciones.forEach(op => {
+            const opt = document.createElement('option');
+            opt.value = op.value;
+            opt.textContent = op.label;
+            if (item.estado === op.value) opt.selected = true;
+            select.appendChild(opt);
+        });
+        select.addEventListener('change', () => {
+            item.estado = select.value;
+            applyRowStatusClass(tr, item.estado);
+        });
+        tdEstado.appendChild(select);
+        tr.appendChild(tdEstado);
+
+        applyRowStatusClass(tr, item.estado);
+
+        itemsTableBody.appendChild(tr);
+    });
+}
+
+backBtn.addEventListener('click', () => {
+    detailView.classList.add('hidden');
+    generalView.classList.remove('hidden');
+});
+
+/* CARGA DESDE PDF */
+const pdfInput = document.getElementById('pdfInput');
+
+pdfInput.addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        let fullText = '';
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const strings = content.items.map(item => item.str);
+            fullText += strings.join(' ') + '\n';
+        }
+
+        parsePresupuestoFromText(fullText);
+
+    } catch (err) {
+        console.error(err);
+        alert('No se pudo leer el PDF. Puede que el formato no sea compatible.');
+    } finally {
+        pdfInput.value = '';
+    }
+});
+
+function parsePresupuestoFromText(text) {
+    let numMatch = text.match(/PRESUPUESTO\s+0*([\d]+)/i);
+    const numPresupuesto = numMatch ? numMatch[1] : 'SIN_NUMERO';
+
+    let clienteMatch = text.match(/Cliente:\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+)/);
+    const cliente = clienteMatch ? clienteMatch[1].trim() : 'SIN_CLIENTE';
+
+    let fechaMatch = text.match(/Fecha de Emisi[óo]n:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    let fechaIso = '';
+    if (fechaMatch) {
+        const [d, m, y] = fechaMatch[1].split('/');
+        fechaIso = `${y}-${m}-${d}`;
+    } else {
+        fechaIso = '';
+    }
+
+    const lines = text.split('\n');
+    const items = [];
+    for (let raw of lines) {
+        let line = raw.trim();
+        if (!line) continue;
+
+        let itemMatch = line.match(/^([A-Z0-9\.]+)\s+(.+?)\s+(\d+)\s*$/);
+        if (itemMatch) {
+            const codigo = itemMatch[1];
+            const descripcion = itemMatch[2];
+            const cantidad = itemMatch[3];
+
+            items.push({
+                codigo,
+                descripcion,
+                cantidad,
+                estado: 'ninguno'
+            });
+        }
+    }
+
+    const nuevoPresupuesto = {
+        id: numPresupuesto,
+        cliente: cliente,
+        fecha: fechaIso,
+        estado: 'ninguno',
+        items: items
+    };
+
+    presupuestos.push(nuevoPresupuesto);
+    renderPresupuestos();
+    alert(`Se cargó el presupuesto ${numPresupuesto} para ${cliente} con ${items.length} ítems.`);
+}
+</script>
+
+</body>
+</html>
